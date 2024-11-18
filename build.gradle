@@ -1,0 +1,29 @@
+plugins {
+    id 'groovy'
+    id 'application'
+    id 'antlr'    
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Use the correct group ID for Groovy 4.x
+    implementation group: 'org.apache.groovy', name: 'groovy', version: '4.0.24'
+    implementation group: 'org.apache.groovy', name: 'groovy-json', version: '4.0.24' // Optional for JSON support
+    implementation group: 'org.apache.groovy', name: 'groovy-nio', version: '4.0.24'  // Optional for file I/O
+
+    // Optional CLI parsing library
+    implementation 'info.picocli:picocli:4.7.4'
+
+    // The nextflow lang server
+    implementation files('libs/language-server-v1.0.1.jar')
+
+    // Testing dependencies
+    testImplementation group: 'org.apache.groovy', name: 'groovy-test', version: '4.0.24'
+}
+
+application {
+    mainClass = 'nextflow.linter.Main' // Define your main class
+}
