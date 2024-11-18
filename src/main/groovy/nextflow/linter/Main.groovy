@@ -2,12 +2,11 @@ package nextflow.linter
 
 import nextflow.lsp.file.FileCache
 import nextflow.lsp.services.script.ScriptAstCache
-import picocli.CommandLine
-import java.nio.file.Paths
-
-import org.fusesource.jansi.AnsiConsole
 import org.fusesource.jansi.Ansi
+import picocli.CommandLine
 
+import java.util.concurrent.Callable;
+import java.nio.file.Paths
 
 @CommandLine.Command(
         name = "nf-lint",
@@ -15,17 +14,17 @@ import org.fusesource.jansi.Ansi
         version = "nextflow-linter 0.0.1",
         description = "Lints Nextflow scripts for syntax and semantic issues using the Nextflow Language Server tools."
 )
-class Main implements Runnable {
+class Main implements Callable<Integer> {
 
     @CommandLine.Parameters(index = "0", description = "The Nextflow script or directory to lint.")
     private String path
 
     @Override
-    void run() {
+    Integer call() {
         def src = new File(path)
         if (!src.exists()) {
-            println "\u001B[31mError: Path '${path}' does not exist.\u001B[0m"
-            return
+            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Path '${path}' does not exist.").reset()
+            return 1
         }
 
         // Initialize the ScriptAstCache
@@ -46,17 +45,22 @@ class Main implements Runnable {
 
         if (fileList.isEmpty()) {
             println "No .nf files found in the specified path: '${path}'."
-            return
+            return 1
         }
 
         // Lint the files
-        lintFiles(fileList, scriptASTCache)
+        if ( lintFiles(fileList, scriptASTCache) ) {
+            // There are errors
+            return 1
+        } else {
+            return 0
+        }
     }
 
-    private static void lintFiles(List<File> files, ScriptAstCache scriptASTCache) {
+    private static boolean lintFiles(List<File> files, ScriptAstCache scriptASTCache) {
         if (files.isEmpty()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("No Nextflow files found to lint.").reset()
-            return
+            return false
         }
 
         // Dummy override of the FileCache
@@ -75,7 +79,7 @@ class Main implements Runnable {
         } catch (Exception e) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error processing files: ${e.message}").reset()
             e.printStackTrace()
-            return
+            return true
         }
 
         def totalErrors = 0
@@ -84,7 +88,7 @@ class Main implements Runnable {
         // Print linting results for each file
         uris.each { uri ->
             println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("📁 Linting: ${new File(uri).path}").reset()
-            println "-" * ( uri.toString().length() + 11 ) // to account for the linting prefix
+            println "-" * 10
 
             if (scriptASTCache.hasErrors(uri)) {
                 println Ansi.ansi().fgBright(Ansi.Color.RED).a("Errors 🚩").reset()
@@ -95,9 +99,8 @@ class Main implements Runnable {
 
             if (scriptASTCache.hasWarnings(uri)) {
                 println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Warnings ⚠️").reset()
-                // TODO: improve, i.e. for unused variable we need to print the name of the variable and the position at least
                 scriptASTCache.getWarnings(uri).each { warning ->
-                    println "- ${warning.getMessage()} - ${warning.getContext()}"
+                    println "- ${warning.getMessage()}"
                 }
             }
 
@@ -116,12 +119,12 @@ class Main implements Runnable {
         println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${totalErrors} 🚩").reset()
         println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${totalWarnings} ⚠️").reset()
         println "-" * 40
+
+        return totalErrors > 0
     }
 
     static void main(String[] args) {
-        AnsiConsole.systemInstall()
         int exitCode = new CommandLine(new Main()).execute(args)
-        AnsiConsole.systemUninstall()
         System.exit(exitCode)
     }
 }
