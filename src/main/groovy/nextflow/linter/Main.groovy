@@ -5,7 +5,7 @@ import nextflow.lsp.services.script.ScriptAstCache
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 
-import java.util.concurrent.Callable;
+import java.util.concurrent.Callable
 import java.nio.file.Paths
 
 @CommandLine.Command(
@@ -48,13 +48,9 @@ class Main implements Callable<Integer> {
             return 1
         }
 
-        // Lint the files
-        if ( lintFiles(fileList, scriptASTCache) ) {
-            // There are errors
-            return 1
-        } else {
-            return 0
-        }
+        // Lint the files and return the appropriate exit code
+        // If there are any errors, then return an error exit code
+        return lintFiles(fileList, scriptASTCache) ? 1 : 0
     }
 
     private static boolean lintFiles(List<File> files, ScriptAstCache scriptASTCache) {
@@ -87,20 +83,24 @@ class Main implements Callable<Integer> {
 
         // Print linting results for each file
         uris.each { uri ->
-            println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("📁 Linting: ${new File(uri).path}").reset()
-            println "-" * 10
+            def filePath = new File(uri).path
+            println "-" * (12 + filePath.length())
+            println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("📁 Linting: ${filePath}").reset()
+            println "-" * (12 + filePath.length())
 
             if (scriptASTCache.hasErrors(uri)) {
-                println Ansi.ansi().fgBright(Ansi.Color.RED).a("Errors 🚩").reset()
+                println Ansi.ansi().fgBright(Ansi.Color.RED).a("🚩 Errors").reset()
                 scriptASTCache.getErrors(uri).each { error ->
                     println "- ${error.getMessage()}"
                 }
+                if (scriptASTCache.hasWarnings(uri)) println "~" * (12 + filePath.length())
             }
 
             if (scriptASTCache.hasWarnings(uri)) {
-                println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Warnings ⚠️").reset()
+                println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("⚠️ Warnings").reset()
                 scriptASTCache.getWarnings(uri).each { warning ->
-                    println "- ${warning.getMessage()}"
+                    def context = warning.getContext()
+                    println "- ${warning.getMessage()} @ line ${context.getStartLine()}, column ${context.getStartColumn()}"
                 }
             }
 
@@ -110,11 +110,11 @@ class Main implements Callable<Integer> {
 
             totalErrors += scriptASTCache.getErrors(uri).size()
             totalWarnings += scriptASTCache.getWarnings(uri).size()
-            println "\n"
+
         }
 
         println "-" * 40
-        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary:").reset()
+        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary").reset()
         println "Total files linted: ${files.size()}"
         println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${totalErrors} 🚩").reset()
         println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${totalWarnings} ⚠️").reset()
