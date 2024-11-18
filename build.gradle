@@ -1,7 +1,8 @@
 plugins {
     id 'groovy'
     id 'application'
-    id 'antlr'    
+    id 'antlr'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 repositories {
@@ -9,14 +10,10 @@ repositories {
 }
 
 dependencies {
-    // Use the correct group ID for Groovy 4.x
     implementation group: 'org.apache.groovy', name: 'groovy', version: '4.0.24'
-    implementation group: 'org.apache.groovy', name: 'groovy-json', version: '4.0.24' // Optional for JSON support
     implementation group: 'org.apache.groovy', name: 'groovy-nio', version: '4.0.24'  // Optional for file I/O
-
-    // Optional CLI parsing library
     implementation 'info.picocli:picocli:4.7.4'
-
+    implementation 'org.fusesource.jansi:jansi:2.4.0'
     // The nextflow lang server
     implementation files('libs/language-server-v1.0.1.jar')
 
@@ -26,4 +23,17 @@ dependencies {
 
 application {
     mainClass = 'nextflow.linter.Main' // Define your main class
+}
+
+jar {
+    manifest {
+        attributes 'Class-Path': 'libs/language-server-v1.0.1.jar'
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    manifest {
+        attributes 'Main-Class': 'nextflow.linter.Main'
+    }
 }
