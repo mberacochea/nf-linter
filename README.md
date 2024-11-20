@@ -12,10 +12,7 @@ A command-line tool for linting **Nextflow scripts** to detect syntax and semant
 
 This tool should print exactly the same errors and warnings as the Nextflow VS Code extension.
 
-It supports individual `.nf` files or to recursively lint all `.nf` files in a directory.
-
-> **Note:**  
-> It doesn't support configuration files yet, but I may add that at some point.
+It supports individual `.nf` or `.config` files or to recursively lint all `.nf` and `.config` files in a directory.
 
 The linter will exit with code `1` if there is at least one error.
 
