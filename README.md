@@ -29,15 +29,15 @@ The linter will exit with code `1` if there is at least one error.
 Clone the repository and build the project:
 
 ```bash
-git clone https://github.com/mberacochea/nextflow-linter.git
-cd nextflow-linter
-./gradlew shadowJar
+$ git clone https://github.com/mberacochea/nf-linter.git
+$ cd nf-linter
+$ ./gradlew shadowJar
 ```
 
 The generated JAR file will be available in the `build/libs` directory:
 
 ```plaintext
-build/libs/nextflow-linter.jar
+build/libs/nf-linter.jar
 ```
 
 ---
@@ -46,41 +46,27 @@ build/libs/nextflow-linter.jar
 
 ### Command Syntax
 ```bash
-java -jar nextflow-linter.jar <script_or_directory_path>
+java -jar nf-linter.jar <script_or_directory_path>
 ```
 
 ### Examples
 
 #### Lint a Single File
 ```bash
-java -jar nextflow-linter.jar /path/to/script.nf
+java -jar nf-linter.jar /path/to/script.nf
 ```
 
-#### Lint All `.nf` Files in a Directory
+#### Lint All `.nf` and `.config` files in a directory
 ```bash
-java -jar nextflow-linter.jar /path/to/scripts/
+java -jar nf-linter.jar /path/to/scripts/
 ```
 
 #### Display Help
 ```bash
-java -jar nextflow-linter.jar --help
+java -jar nf-linter.jar --help
 ```
 
 ### Output Example
 ```bash
-📁 Linting: /path/to/example.nf
-------------------------------------------------------------------------------------------------------
-Errors 🚩
-- `c` is not defined @ line 66, column 37.
-Warnings ⚠️
-- Process `when` section will not be supported in a future version - (<> at 27:5)
-- Variable was declared but not used - (<> at 70:9)
-- Variable was declared but not used - (<> at 32:9)
-- Variable was declared but not used - (<> at 36:9)
-----------------------------------------
-Summary:
-Total files linted: 1
-Total errors: 1 🚩
-Total warnings: 4 ⚠️
-----------------------------------------
+
 ```

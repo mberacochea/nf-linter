@@ -1,4 +1,4 @@
-package nextflow.linter
+package nf.linter
 
 import nextflow.lsp.file.FileCache
 

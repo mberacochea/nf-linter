@@ -22,7 +22,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'nextflow.linter.Main' // Define your main class
+    mainClass = 'nf.linter.Main'
 }
 
 jar {
@@ -34,6 +34,6 @@ jar {
 shadowJar {
     archiveClassifier.set('')
     manifest {
-        attributes 'Main-Class': 'nextflow.linter.Main'
+        attributes 'Main-Class': 'nf.linter.Main'
     }
 }
