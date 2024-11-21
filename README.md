@@ -31,7 +31,7 @@ Clone the repository and build the project:
 ```bash
 $ git clone https://github.com/mberacochea/nf-linter.git
 $ cd nf-linter
-$ ./gradlew shadowJar
+$ ./gradlew build
 ```
 
 The generated JAR file will be available in the `build/libs` directory:
