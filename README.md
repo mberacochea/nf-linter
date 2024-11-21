@@ -67,6 +67,22 @@ java -jar nf-linter.jar --help
 ```
 
 ### Output Example
-```bash
 
+```bash
+➜  nf-linter git:(main) java -jar build/libs/nf-linter.jar src/test/test.nf 
+---------------------------------------------------------
+📄 Linting: /home/mbc/projects/nf-linter/src/test/test.nf
+---------------------------------------------------------
+🚩 Errors
+- The `script:`, `shell:`, or `exec:` label is required when other sections are present @ line 16, column 5.
+- The `script:`, `shell:`, or `exec:` label is required when other sections are present @ line 32, column 5.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+⚠️ Warnings
+- `baseDir` is deprecated and will be removed in a future version @ line 3, column 14
+----------------------------------------
+Summary for script files
+Total files linted: 1
+Total errors: 2 🚩
+Total warnings: 1 ⚠️
+----------------------------------------
 ```
