@@ -1,6 +1,5 @@
 package nf.linter
 
-import nextflow.lsp.file.FileCache
 import nextflow.lsp.services.script.ScriptAstCache
 import nextflow.lsp.services.config.ConfigAstCache
 import org.fusesource.jansi.Ansi
@@ -19,6 +18,9 @@ class Main implements Callable<Integer> {
 
     @CommandLine.Parameters(index = "0", description = "The Nextflow script or directory to lint.")
     private String path
+
+    @CommandLine.Option(names = ['-w', '--silence-warnings'], description = 'Silence warnings')
+    private Boolean silenceWarnings = false
 
     private static final String NF_EXTENSION = ".nf"
     private static final String CONFIG_EXTENSION = ".config"
@@ -49,8 +51,8 @@ class Main implements Callable<Integer> {
         def scriptASTCache = new ScriptAstCache()
         scriptASTCache.initialize(Paths.get("").toUri().toString())
 
-        def errorsInScripts = scriptFiles.isEmpty() ? 0 : lintFiles(scriptFiles, scriptASTCache, "script files")
-        def errorsInConfigs = configFiles.isEmpty() ? 0 : lintFiles(configFiles, new ConfigAstCache(), "config files")
+        def errorsInScripts = scriptFiles.isEmpty() ? 0 : lintFiles(scriptFiles, scriptASTCache, "script files", silenceWarnings)
+        def errorsInConfigs = configFiles.isEmpty() ? 0 : lintFiles(configFiles, new ConfigAstCache(), "config files", silenceWarnings)
 
         return errorsInScripts || errorsInConfigs ? 1 : 0
     }
@@ -75,7 +77,7 @@ class Main implements Callable<Integer> {
         return [scriptFiles: scriptFiles, configFiles: configFiles]
     }
 
-    private static boolean lintFiles(List<File> files, def astCache, String label) {
+    private static boolean lintFiles(List<File> files, def astCache, String label, Boolean silenceWarnings = false) {
         if (files.isEmpty()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
             return false
@@ -113,7 +115,7 @@ class Main implements Callable<Integer> {
                 if (astCache.hasWarnings(uri)) println "~" * (12 + filePath.length())
             }
 
-            if (astCache.hasWarnings(uri)) {
+            if (!silenceWarnings && astCache.hasWarnings(uri)) {
                 println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("⚠️ Warnings").reset()
                 astCache.getWarnings(uri).each { warning ->
                     def context = warning.getContext()
@@ -133,7 +135,9 @@ class Main implements Callable<Integer> {
         println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary for ${label}").reset()
         println "Total files linted: ${files.size()}"
         println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${totalErrors} 🚩").reset()
-        println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${totalWarnings} ⚠️").reset()
+        if ( !silenceWarnings ) {
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${totalWarnings} ⚠️").reset()
+        }
         println "-" * 40
 
         return totalErrors > 0
