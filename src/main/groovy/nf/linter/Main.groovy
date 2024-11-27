@@ -77,7 +77,7 @@ class Main implements Callable<Integer> {
         return [scriptFiles: scriptFiles, configFiles: configFiles]
     }
 
-    private static boolean lintFiles(List<File> files, def astCache, String label, Boolean silenceWarnings = false) {
+    public static boolean lintFiles(List<File> files, def astCache, String label, Boolean silenceWarnings = false) {
         if (files.isEmpty()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
             return false
