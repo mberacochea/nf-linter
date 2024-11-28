@@ -166,12 +166,11 @@ class Main implements Callable<Integer> {
                 astCache.getWarnings(uri).each { warning ->
                     def context = warning.getContext()
                     println "- ${warning.getMessage()} @ line ${context.getStartLine()}, column ${context.getStartColumn()}"
+                    totalWarnings += 1
                 }
             }
 
-            totalWarnings += astCache.getWarnings(uri).size()
-
-            if ((!silenceWarnings && !totalWarnings) && !totalErrors) {
+            if (totalErrors == 0 && totalWarnings == 0) {
                 println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("✨ No issues with this one.").reset()
             }
         }
