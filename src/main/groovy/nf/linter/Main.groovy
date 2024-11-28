@@ -169,10 +169,6 @@ class Main implements Callable<Integer> {
                 }
             }
 
-            if (!astCache.hasWarnings(uri) && !astCache.hasErrors(uri)) {
-                println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("✨ No issues with this one.").reset()
-            }
-
             totalWarnings += astCache.getWarnings(uri).size()
 
             if ((!silenceWarnings && !totalWarnings) && !totalErrors) {
