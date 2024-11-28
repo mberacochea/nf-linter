@@ -6,12 +6,13 @@ import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 
 import java.nio.file.Paths
+import java.nio.file.Files
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
         name = "nf-lint",
         mixinStandardHelpOptions = true,
-        version = "nf-linter 0.0.1",
+        version = "nf-linter 0.1.0",
         description = "Lints Nextflow scripts for syntax and semantic issues using the Nextflow Language Server tools."
 )
 class Main implements Callable<Integer> {
@@ -77,18 +78,52 @@ class Main implements Callable<Integer> {
         return [scriptFiles: scriptFiles, configFiles: configFiles]
     }
 
-    public static boolean lintFiles(List<File> files, def astCache, String label, Boolean silenceWarnings = false) {
+    /**
+     * Get the line "startLine" from a file
+     *
+     * @param filePath Path to the text file
+     * @param startLine Line number to read (1-based index)
+     * @param endLine Line number to read (1-based index)
+     * @return The content of the specified line, or null if line doesn't exist
+     * @throws IOException If there's an error reading the file
+     */
+    static String readLineFromFile(String filePath, int startLine) {
+        try {
+            Files.lines(Paths.get(filePath)).skip(startLine - 1).findFirst().orElse(null)
+        } catch (IOException e) {
+            throw new IOException("Error reading file: ${filePath}", e)
+        }
+    }
+
+    /**
+     * Use the Nextflow Language Server to lint the files
+     * @param files a List of Files
+     * @param astCache the ASTCacheService (either Script or Config [as in Nextflow config files]
+     * @param label The label to use when printing messages and errors
+     * @param silenceWarnings Set to true to disable the warning messages
+     * @return True if there are any errors in the linted files
+     */
+    static boolean lintFiles(List<File> files, def astCache, String label, Boolean silenceWarnings = false) {
         if (files.isEmpty()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
             return false
         }
 
         def dummyCacheFile = new DummyFileCache()
-        def uris = files.collect { file ->
+        def uris = new HashSet<URI>()
+        files.each { file ->
             def uri = file.toURI()
-            dummyCacheFile.setContents(uri, file.text)
-            uri
-        } as Set
+            // Don't lint files that have // nf-lint: noqa in the first 10 lines - ignore
+            if (!file.text.contains("// nf-lint: noqa")) {
+                dummyCacheFile.setContents(uri, file.text)
+                uris << uri
+            }
+        }
+
+        if (!uris.size()) {
+            println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No ${label} files to lint.").reset()
+            return false
+        }
 
         try {
             astCache.update(uris, dummyCacheFile)
@@ -102,17 +137,28 @@ class Main implements Callable<Integer> {
         def totalWarnings = 0
 
         uris.each { uri ->
-            def filePath = new File(uri).path
+            def filePath = new File(uri as URI).path
             println "-" * (12 + filePath.length())
             println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("📄 Linting: ${filePath}").reset()
             println "-" * (12 + filePath.length())
 
+            def errorsInFile = []
             if (astCache.hasErrors(uri)) {
-                println Ansi.ansi().fgBright(Ansi.Color.RED).a("🚩 Errors").reset()
                 astCache.getErrors(uri).each { error ->
-                    println "- ${error.getMessage()}"
+                    def statement = readLineFromFile(filePath, error.getLine() as int)
+                    if (!statement.contains("// noqa")) {
+                        errorsInFile << "- ${error.getMessage()}"
+                        totalErrors += 1
+                    }
                 }
                 if (astCache.hasWarnings(uri)) println "~" * (12 + filePath.length())
+            }
+
+            if (errorsInFile.size()) {
+                println Ansi.ansi().fgBright(Ansi.Color.RED).a("🚩 Errors").reset()
+                errorsInFile.each(errorMessage -> {
+                    println errorMessage
+                })
             }
 
             if (!silenceWarnings && astCache.hasWarnings(uri)) {
@@ -127,15 +173,18 @@ class Main implements Callable<Integer> {
                 println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("✨ No issues with this one.").reset()
             }
 
-            totalErrors += astCache.getErrors(uri).size()
             totalWarnings += astCache.getWarnings(uri).size()
+
+            if ((!silenceWarnings && !totalWarnings) && !totalErrors) {
+                println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("✨ No issues with this one.").reset()
+            }
         }
 
         println "-" * 40
         println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary for ${label}").reset()
         println "Total files linted: ${files.size()}"
         println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${totalErrors} 🚩").reset()
-        if ( !silenceWarnings ) {
+        if (!silenceWarnings) {
             println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${totalWarnings} ⚠️").reset()
         }
         println "-" * 40

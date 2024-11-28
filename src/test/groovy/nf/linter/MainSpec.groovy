@@ -6,11 +6,29 @@ import nextflow.lsp.services.script.ScriptAstCache
 import java.nio.file.Paths
 
 class MainSpec extends Specification {
-    private ScriptAstCache scriptASTCache
+
+    ScriptAstCache scriptASTCache
+    ByteArrayOutputStream outputStream
+    PrintStream originalOut
 
     def setup() {
         scriptASTCache = new ScriptAstCache()
         scriptASTCache.initialize(Paths.get("").toUri().toString())
+        // Capture system output
+        originalOut = System.out
+        outputStream = new ByteArrayOutputStream()
+        System.out = new PrintStream(outputStream)
+    }
+
+    def cleanup() {
+        System.out = originalOut
+    }
+
+    def Main createMainWithPath(String resourcePath, boolean silenceWarnings = false) {
+        def main = new Main()
+        main.path = getClass().getResource(resourcePath).path
+        main.silenceWarnings = silenceWarnings
+        return main
     }
 
     def "lintFiles should return false for valid Nextflow scripts"() {
@@ -27,11 +45,6 @@ class MainSpec extends Specification {
     def "lintFiles should detect and report import declaration errors"() {
         given: "A nextflow script with excluded import syntax"
         def testFile = new File(getClass().getResource("/test_excluded_syntax_import.nf").toURI())
-
-        and: "Capture system output"
-        def originalOut = System.out
-        def outputStream = new ByteArrayOutputStream()
-        System.out = new PrintStream(outputStream)
 
         when: "lintFiles is called"
         def result = Main.lintFiles([testFile], scriptASTCache, "test scripts")
@@ -51,11 +64,6 @@ class MainSpec extends Specification {
     def "lintFiles should detect mixing of script declarations and statements"() {
         given: "A nextflow script mixing script declarations and statements"
         def testFile = new File(getClass().getResource("/test_excluded_syntax_mixing_script_declarations_and_statements.nf").toURI())
-
-        and: "Capture system output"
-        def originalOut = System.out
-        def outputStream = new ByteArrayOutputStream()
-        System.out = new PrintStream(outputStream)
 
         when: "lintFiles is called"
         def result = Main.lintFiles([testFile], scriptASTCache, "test scripts")
@@ -87,11 +95,6 @@ class MainSpec extends Specification {
             }
         '''.stripIndent())
 
-        and: "Capture system output"
-        def originalOut = System.out
-        def outputStream = new ByteArrayOutputStream()
-        System.out = new PrintStream(outputStream)
-
         when: "lintFiles is called"
         def result = Main.lintFiles([testScript], scriptASTCache, "test scripts")
 
@@ -101,9 +104,6 @@ class MainSpec extends Specification {
         and: "Verify error messages"
         def capturedOutput = outputStream.toString()
         capturedOutput.contains("Unexpected input: '=' @ line 7, column 14.")
-
-        cleanup: "Restore system output"
-        System.out = originalOut
     }
 
     def "lintFiles should detect increment operator usage"() {
@@ -116,11 +116,6 @@ class MainSpec extends Specification {
             println x
         '''.stripIndent())
 
-        and: "Capture system output"
-        def originalOut = System.out
-        def outputStream = new ByteArrayOutputStream()
-        System.out = new PrintStream(outputStream)
-
         when: "lintFiles is called"
         def result = Main.lintFiles([testScript], scriptASTCache, "test scripts")
 
@@ -130,9 +125,6 @@ class MainSpec extends Specification {
         and: "Verify error messages"
         def capturedOutput = outputStream.toString()
         capturedOutput.contains("Unexpected input: '\\n' @ line 3, column 8.")
-
-        cleanup: "Restore system output"
-        System.out = originalOut
     }
 
     def "lintFiles should accept proper assignment and increment/decrement alternatives"() {
@@ -154,17 +146,9 @@ class MainSpec extends Specification {
         !result
     }
 
-
     def "call the linter with a file with warnings and silence warnings"() {
         given: "A Main instance with silence warnings"
-        def main = new Main()
-        main.path = getClass().getResource("/test_with_warnings.nf").path
-        main.silenceWarnings = true
-
-        and: "Capture system output"
-        def originalOut = System.out
-        def outputStream = new ByteArrayOutputStream()
-        System.out = new PrintStream(outputStream)
+        def main = createMainWithPath("/test_with_warnings.nf")
 
         when: "call is executed"
         def result = main.call()
@@ -173,9 +157,19 @@ class MainSpec extends Specification {
         result == 0
         def capturedOutput = outputStream.toString()
         !capturedOutput.contains("Total warnings: 0")
+    }
 
-        cleanup: "Restore system output"
-        System.out = originalOut
+    def "call the linter on a file that has nf-lint: noqa"() {
+        given: "A Main instance"
+        def main = createMainWithPath("/test_with_errors_but_noqa.nf")
+
+        when: "call is executed"
+        def result = main.call()
+
+        then: "The file won't be linted"
+        result == 0
+        def capturedOutput = outputStream.toString()
+        capturedOutput.contains("No script files files to lint.")
     }
 
     def "call the linter with an non-existent paths should exit gracefully"() {
