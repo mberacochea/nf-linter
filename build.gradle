@@ -4,6 +4,7 @@ plugins {
     id 'antlr'
     id 'com.gradleup.shadow' version '8.3.5'
     id 'jvm-test-suite'
+    id 'jacoco'
 }
 
 repositories {
@@ -42,6 +43,14 @@ testing {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = false
+        csv.required = false
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+    }
 }
 
 sourceSets {

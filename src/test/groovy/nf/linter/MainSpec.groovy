@@ -24,7 +24,7 @@ class MainSpec extends Specification {
         System.out = originalOut
     }
 
-    def Main createMainWithPath(String resourcePath, boolean silenceWarnings = false) {
+    Main createMainWithPath(String resourcePath, boolean silenceWarnings = false) {
         def main = new Main()
         main.path = getClass().getResource(resourcePath).path
         main.silenceWarnings = silenceWarnings
@@ -36,7 +36,7 @@ class MainSpec extends Specification {
         def testFile = new File(getClass().getResource("/test_all_good.nf").toURI())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testFile], scriptASTCache, "test scripts")
+        def result = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
 
         then: "No errors should be returned"
         !result
@@ -47,7 +47,7 @@ class MainSpec extends Specification {
         def testFile = new File(getClass().getResource("/test_excluded_syntax_import.nf").toURI())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testFile], scriptASTCache, "test scripts")
+        def result = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
 
         then: "Errors should be returned"
         result
@@ -66,7 +66,7 @@ class MainSpec extends Specification {
         def testFile = new File(getClass().getResource("/test_excluded_syntax_mixing_script_declarations_and_statements.nf").toURI())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testFile], scriptASTCache, "test scripts")
+        def result = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
 
         then: "Errors should be returned"
         result
@@ -96,7 +96,7 @@ class MainSpec extends Specification {
         '''.stripIndent())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testScript], scriptASTCache, "test scripts")
+        def result = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
 
         then: "Errors should be returned"
         result
@@ -117,7 +117,7 @@ class MainSpec extends Specification {
         '''.stripIndent())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testScript], scriptASTCache, "test scripts")
+        def result = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
 
         then: "Errors should be returned"
         result
@@ -140,10 +140,29 @@ class MainSpec extends Specification {
         '''.stripIndent())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testScript], scriptASTCache, "test scripts")
+        def result = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
 
         then: "No errors should be returned"
         !result
+    }
+
+    def "launch the tool with a folder that only has a txt file"() {
+        given: "An folder that doesn't have any .nf or .config files"
+        def testFolder = File.createTempDir("test_empty")
+        testFolder.deleteOnExit()
+        def textScript = File.createTempFile("test_text", ".txt", testFolder)
+        textScript.deleteOnExit()
+        textScript.write("Definitely not a Nextflow script or config file")
+        def main = new Main()
+        main.path = testFolder.path
+
+        when: "call is executed"
+        def result = main.call()
+
+        then: "An error should be returned with exit code 1"
+        result == 1
+        def capturedOutput = outputStream.toString()
+        capturedOutput.contains("Info: No .nf or .config files found in the specified path: '${testFolder.path}'.")
     }
 
     def "call the linter with a file with warnings and silence warnings"() {
@@ -169,7 +188,7 @@ class MainSpec extends Specification {
         then: "The file won't be linted"
         result == 0
         def capturedOutput = outputStream.toString()
-        capturedOutput.contains("No script files files to lint.")
+        capturedOutput.contains("No script files to lint.")
     }
 
     def "call the linter with an non-existent paths should exit gracefully"() {

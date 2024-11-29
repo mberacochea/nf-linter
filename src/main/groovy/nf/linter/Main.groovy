@@ -25,6 +25,10 @@ class Main implements Callable<Integer> {
 
     private static final String NF_EXTENSION = ".nf"
     private static final String CONFIG_EXTENSION = ".config"
+    static final enum SOURCE_TYPE {
+        SCRIPT,
+        CONFIG
+    }
 
     @Override
     Integer call() {
@@ -52,12 +56,17 @@ class Main implements Callable<Integer> {
         def scriptASTCache = new ScriptAstCache()
         scriptASTCache.initialize(Paths.get("").toUri().toString())
 
-        def errorsInScripts = scriptFiles.isEmpty() ? 0 : lintFiles(scriptFiles, scriptASTCache, "script files", silenceWarnings)
-        def errorsInConfigs = configFiles.isEmpty() ? 0 : lintFiles(configFiles, new ConfigAstCache(), "config files", silenceWarnings)
+        def errorsInScripts = scriptFiles.isEmpty() ? 0 : lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings)
+        def errorsInConfigs = configFiles.isEmpty() ? 0 : lintFiles(configFiles, new ConfigAstCache(), SOURCE_TYPE.CONFIG, silenceWarnings)
 
         return errorsInScripts || errorsInConfigs ? 1 : 0
     }
 
+    /**
+     * Collect all the nf script and config files, it will crawl if the path is a directory
+     * @param src -> Source File | Directory
+     * @return [List<Scripts>, List<Configs>]
+     */
     private static Map<String, List<File>> collectFiles(File src) {
         def scriptFiles = []
         def configFiles = []
@@ -65,12 +74,12 @@ class Main implements Callable<Integer> {
 
         if (src.isDirectory()) {
             src.eachFileRecurse { file ->
-                fileExtensions.each { ext, list ->
+                fileExtensions.forEach { ext, list ->
                     if (file.name.endsWith(ext)) list << file
                 }
             }
         } else if (src.isFile()) {
-            fileExtensions.each { ext, list ->
+            fileExtensions.forEach { ext, list ->
                 if (src.name.endsWith(ext)) list << src
             }
         }
@@ -99,11 +108,13 @@ class Main implements Callable<Integer> {
      * Use the Nextflow Language Server to lint the files
      * @param files a List of Files
      * @param astCache the ASTCacheService (either Script or Config [as in Nextflow config files]
-     * @param label The label to use when printing messages and errors
+     * @param SOURCE_TYPE Source type, either a script or a config
      * @param silenceWarnings Set to true to disable the warning messages
      * @return True if there are any errors in the linted files
      */
-    static boolean lintFiles(List<File> files, def astCache, String label, Boolean silenceWarnings = false) {
+    static boolean lintFiles(List<File> files, def astCache, SOURCE_TYPE sourceType, Boolean silenceWarnings = false) {
+        def label = sourceType.toString().toLowerCase()
+
         if (files.isEmpty()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
             return false
