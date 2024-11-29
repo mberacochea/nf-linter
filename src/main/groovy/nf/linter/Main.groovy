@@ -12,7 +12,7 @@ import java.util.concurrent.Callable
 @CommandLine.Command(
         name = "nf-lint",
         mixinStandardHelpOptions = true,
-        version = "nf-linter 0.1.0",
+        version = "nf-linter 0.1.0beta",
         description = "Lints Nextflow scripts for syntax and semantic issues using the Nextflow Language Server tools."
 )
 class Main implements Callable<Integer> {

@@ -171,3 +171,10 @@ Total errors: 0 🚩
 Total warnings: 1 ⚠️
 ----------------------------------------
 ```
+
+## TODOs
+
+- [ ] Review the error printing bits, everything is sent to the stdout
+- [ ] Automate the nf-lint executable
+  generation [really_executable_jars](https://skife.org/java/unix/2011/06/20/really_executable_jars.html)
+- [ ] Unit tests for config files
