@@ -174,6 +174,8 @@ Total warnings: 1 ⚠️
 
 ## TODOs
 
+- [ ] Print the summaries (scripts and files) together at the end of the execution
+- [ ] Clean up the output, for example when running with -w for files with no errors the output is empty
 - [ ] Review the error printing bits, everything is sent to the stdout
 - [ ] Automate the nf-lint executable
   generation [really_executable_jars](https://skife.org/java/unix/2011/06/20/really_executable_jars.html)
