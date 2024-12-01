@@ -8,6 +8,10 @@ import picocli.CommandLine
 import java.nio.file.Paths
 import java.nio.file.Files
 import java.util.concurrent.Callable
+import java.util.logging.Logger
+import java.util.logging.Level
+
+def logger = Logger.getLogger(this.class.name)
 
 @CommandLine.Command(
         name = "nf-lint",
@@ -52,14 +56,50 @@ class Main implements Callable<Integer> {
             return 1
         }
 
-        // Initialize AST caches
-        def scriptASTCache = new ScriptAstCache()
-        scriptASTCache.initialize(Paths.get("").toUri().toString())
+        def messages = []
 
-        def errorsInScripts = scriptFiles.isEmpty() ? 0 : lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings)
-        def errorsInConfigs = configFiles.isEmpty() ? 0 : lintFiles(configFiles, new ConfigAstCache(), SOURCE_TYPE.CONFIG, silenceWarnings)
+        if ( !scriptFiles.isEmpty() ) {
+            ScriptAstCache scriptASTCache = new ScriptAstCache()
+            scriptASTCache.initialize(Paths.get("").toUri().toString())
+            messages.addAll( lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings) )
+        }
 
-        return errorsInScripts || errorsInConfigs ? 1 : 0
+        if ( !configFiles.isEmpty() ) {
+            def configAstCache = new ConfigAstCache();
+            messages.addAll(lintFiles(configFiles, configAstCache , SOURCE_TYPE.CONFIG, silenceWarnings))
+        }
+
+        // Print them //
+        return 0
+    }
+
+    /**
+     * Simple class to store the linter messages to be print
+     */
+    class LinterMessage {
+
+        enum TYPE {
+            ERROR,
+            WARNING
+        }
+
+        String message
+        TYPE messageType
+
+        LinterMessage(String message, TYPE messageType) {
+            this.message = message
+            this.messageType = messageType
+        }
+
+        def print() {
+            if (messageType == TYPE.ERROR) {
+                println ""
+            }
+            if (messageType == TYPE.WARNING) {
+                logger.log(Level.WARNING, "${warning.getMessage()} @ line ${context.getStartLine()}, column ${context.getStartColumn()}")
+            }
+            throw new Exception("Invalid messateTYpe ${messageType}")
+        }
     }
 
     /**
@@ -112,12 +152,12 @@ class Main implements Callable<Integer> {
      * @param silenceWarnings Set to true to disable the warning messages
      * @return True if there are any errors in the linted files
      */
-    static boolean lintFiles(List<File> files, def astCache, SOURCE_TYPE sourceType, Boolean silenceWarnings = false) {
+    static List<LinterMessage> lintFiles(List<File> files, def astCache, SOURCE_TYPE sourceType, Boolean silenceWarnings = false) {
         def label = sourceType.toString().toLowerCase()
 
         if (files.isEmpty()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
-            return false
+            return []
         }
 
         def dummyCacheFile = new DummyFileCache()
@@ -133,7 +173,7 @@ class Main implements Callable<Integer> {
 
         if (!uris.size()) {
             println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No ${label} files to lint.").reset()
-            return false
+            return []
         }
 
         try {
@@ -141,11 +181,8 @@ class Main implements Callable<Integer> {
         } catch (Exception e) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Error processing files: ${e.message}").reset()
             e.printStackTrace()
-            return true
+            return []
         }
-
-        def totalErrors = 0
-        def totalWarnings = 0
 
         uris.each { uri ->
             def filePath = new File(uri as URI).path
