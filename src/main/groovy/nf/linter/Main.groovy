@@ -60,18 +60,18 @@ class FileLinterMessages {
         println "-" * (9 + filePath.length())
 
         if (this.errorMessages.any()) {
-            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Errors 🚩").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Errors").reset()
             this.errorMessages.forEach { message ->
                 {
                     message.print()
                 }
             }
         } else {
-            println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No errors with this one ✅.").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No errors with this one").reset()
         }
 
         if (this.warningMessages.any() && !this.silenceWarnings) {
-            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Warnings ⚠️").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Warnings").reset()
             this.warningMessages.forEach { message ->
                 {
                     message.print()
@@ -322,16 +322,16 @@ class Main implements Callable<Integer> {
 
         println "-" * 40
         println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary").reset()
-        println "Total script files linted 📜: ${summary.lintedScripts}"
-        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.scriptErrors} 🚩").reset()
+        println "Total script files linted: ${summary.lintedScripts}"
+        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.scriptErrors}").reset()
         if (!silenceWarnings) {
-            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.scriptWarnings} ⚠️").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.scriptWarnings}️").reset()
         }
         println ""
-        println "Total config files linted ⚙️: ${summary.lintedConfigs}"
-        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.configErrors} 🚩").reset()
+        println "Total config files linted️: ${summary.lintedConfigs}"
+        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.configErrors}").reset()
         if (!silenceWarnings) {
-            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.configWarnings} ⚠️").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.configWarnings}️").reset()
         }
         println "-" * 40
     }
