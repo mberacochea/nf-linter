@@ -1,26 +1,27 @@
 package nf.linter
 
-import nextflow.lsp.services.script.ScriptAstCache
 import nextflow.lsp.services.config.ConfigAstCache
+import nextflow.lsp.services.script.ScriptAstCache
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 
-import java.nio.file.Paths
 import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.Callable
-
 
 class FileLinterMessages {
     File file
     Main.SOURCE_TYPE sourceType
     Boolean silenceWarnings
-    ArrayList<LinterMessage> errorMessages = []
-    ArrayList<LinterMessage> warningMessages = []
+    ArrayList<LinterMessage> errorMessages
+    ArrayList<LinterMessage> warningMessages
 
     FileLinterMessages(File file, Main.SOURCE_TYPE sourceType, Boolean silenceWarnings) {
         this.file = file
         this.sourceType = sourceType
         this.silenceWarnings = silenceWarnings
+        this.errorMessages = []
+        this.warningMessages = []
     }
 
     /**
@@ -43,7 +44,7 @@ class FileLinterMessages {
      * Add one warning error to the file
      * @param message
      */
-    def addWaningMessage(LinterMessage message) {
+    def addWarningMessage(LinterMessage message) {
         this.warningMessages << message
     }
 
@@ -54,23 +55,25 @@ class FileLinterMessages {
     def print() {
         def filePath = this.filePath()
 
-        println "-" * (12 + filePath.length())
-        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("📄 Linting: ${filePath}").reset()
-        println "-" * (12 + filePath.length())
+        println "-" * (9 + filePath.length())
+        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Linting: ${filePath}").reset()
+        println "-" * (9 + filePath.length())
 
-        if ( this.errorMessages.any() ) {
+        if (this.errorMessages.any()) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Errors 🚩").reset()
-            this.errorMessages.forEach { message -> {
+            this.errorMessages.forEach { message ->
+                {
                     message.print()
                 }
             }
         } else {
-            println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("✨ No errors with this one.").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No errors with this one ✅.").reset()
         }
 
-        if ( this.warningMessages.any() && !this.silenceWarnings ) {
+        if (this.warningMessages.any() && !this.silenceWarnings) {
             println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Warnings ⚠️").reset()
-            this.warningMessages.forEach { message -> {
+            this.warningMessages.forEach { message ->
+                {
                     message.print()
                 }
             }
@@ -158,13 +161,13 @@ class Main implements Callable<Integer> {
 
         def messages = []
 
-        if ( !scriptFiles.isEmpty() ) {
+        if (!scriptFiles.isEmpty()) {
             ScriptAstCache scriptASTCache = new ScriptAstCache()
             scriptASTCache.initialize(Paths.get("").toUri().toString())
-            messages.addAll(lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings) )
+            messages.addAll(lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings))
         }
 
-        if ( !configFiles.isEmpty() ) {
+        if (!configFiles.isEmpty()) {
             def configAstCache = new ConfigAstCache();
             messages.addAll(lintFiles(configFiles, configAstCache, SOURCE_TYPE.CONFIG, silenceWarnings))
         }
@@ -172,7 +175,7 @@ class Main implements Callable<Integer> {
         // Print them //
         printMessages(messages, silenceWarnings)
 
-        Boolean anyErrors = (messages as List<FileLinterMessages>).any {fileLintMessages -> fileLintMessages.errorMessages.any() }
+        Boolean anyErrors = (messages as List<FileLinterMessages>).any { fileLintMessages -> fileLintMessages.errorMessages.any() }
 
         return anyErrors ? 1 : 0
     }
@@ -274,11 +277,12 @@ class Main implements Callable<Integer> {
                 }
             }
 
-            if ( astCache.hasWarnings(uri) ) {
+            if (astCache.hasWarnings(uri)) {
                 astCache.getWarnings(uri).forEach { warning ->
-                    fileLinterMessages.addWaningMessage(new LinterMessage(warning, LinterMessage.TYPE.WARNING))
+                    fileLinterMessages.addWarningMessage(new LinterMessage(warning, LinterMessage.TYPE.WARNING))
                 }
             }
+
             linterMessages << fileLinterMessages
         }
 
@@ -292,26 +296,27 @@ class Main implements Callable<Integer> {
     static def printMessages(List<FileLinterMessages> fileLinterMessages, Boolean silenceWarnings) {
 
         def summary = [
-            lintedScripts: 0,
-            scriptErrors: 0,
-            scriptWarnings: 0,
-            lintedConfigs: 0,
-            configErrors: 0,
-            configWarnings: 0,
+                lintedScripts : 0,
+                scriptErrors  : 0,
+                scriptWarnings: 0,
+                lintedConfigs : 0,
+                configErrors  : 0,
+                configWarnings: 0,
         ]
 
-        fileLinterMessages.forEach { fileLinterMessage -> {
-                if ( fileLinterMessage.sourceType == SOURCE_TYPE.SCRIPT ) {
+        fileLinterMessages.forEach { linterMessage ->
+            {
+                if (linterMessage.sourceType == SOURCE_TYPE.SCRIPT) {
                     summary.lintedScripts++
-                    summary.scriptErrors += fileLinterMessages.errorMessages.size()
-                    summary.scriptWarnings += fileLinterMessages.warningMessages.size()
+                    summary.scriptErrors += linterMessage.errorMessages.size()
+                    summary.scriptWarnings += linterMessage.warningMessages.size()
                 }
-                if ( fileLinterMessage.sourceType == SOURCE_TYPE.CONFIG ) {
+                if (linterMessage.sourceType == SOURCE_TYPE.CONFIG) {
                     summary.lintedConfigs++
-                    summary.configErrors += fileLinterMessages.errorMessages.size()
-                    summary.configWarnings += fileLinterMessages.warningMessages.size()
+                    summary.configErrors += linterMessage.errorMessages.size()
+                    summary.configWarnings += linterMessage.warningMessages.size()
                 }
-                fileLinterMessage.print()
+                linterMessage.print()
             }
         }
 
@@ -319,12 +324,13 @@ class Main implements Callable<Integer> {
         println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary").reset()
         println "Total script files linted 📜: ${summary.lintedScripts}"
         println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.scriptErrors} 🚩").reset()
-        if ( !silenceWarnings ) {
+        if (!silenceWarnings) {
             println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.scriptWarnings} ⚠️").reset()
         }
+        println ""
         println "Total config files linted ⚙️: ${summary.lintedConfigs}"
         println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.configErrors} 🚩").reset()
-        if ( !silenceWarnings ) {
+        if (!silenceWarnings) {
             println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.configWarnings} ⚠️").reset()
         }
         println "-" * 40
