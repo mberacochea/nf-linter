@@ -1,18 +1,125 @@
 package nf.linter
 
-import nextflow.lsp.services.script.ScriptAstCache
 import nextflow.lsp.services.config.ConfigAstCache
+import nextflow.lsp.services.script.ScriptAstCache
 import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 
-import java.nio.file.Paths
 import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.Callable
+
+class FileLinterMessages {
+    File file
+    Main.SOURCE_TYPE sourceType
+    Boolean silenceWarnings
+    ArrayList<LinterMessage> errorMessages
+    ArrayList<LinterMessage> warningMessages
+
+    FileLinterMessages(File file, Main.SOURCE_TYPE sourceType, Boolean silenceWarnings) {
+        this.file = file
+        this.sourceType = sourceType
+        this.silenceWarnings = silenceWarnings
+        this.errorMessages = []
+        this.warningMessages = []
+    }
+
+    /**
+     * Return the file Path of the file
+     * @return
+     */
+    String filePath() {
+        return this.file.path
+    }
+
+    /**
+     * Add one more error to the file
+     * @param message
+     */
+    def addErrorMessage(LinterMessage message) {
+        this.errorMessages << message
+    }
+
+    /**
+     * Add one warning error to the file
+     * @param message
+     */
+    def addWarningMessage(LinterMessage message) {
+        this.warningMessages << message
+    }
+
+    /**
+     * Print the file lint results in the terminal
+     * @return
+     */
+    def print() {
+        def filePath = this.filePath()
+
+        println "-" * (9 + filePath.length())
+        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Linting: ${filePath}").reset()
+        println "-" * (9 + filePath.length())
+
+        if (this.errorMessages.any()) {
+            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Errors").reset()
+            this.errorMessages.forEach { message ->
+                {
+                    message.print()
+                }
+            }
+        } else {
+            println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No errors with this one").reset()
+        }
+
+        if (this.warningMessages.any() && !this.silenceWarnings) {
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Warnings").reset()
+            this.warningMessages.forEach { message ->
+                {
+                    message.print()
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * Simple class to store the linter messages to be print
+ */
+class LinterMessage {
+
+    enum TYPE {
+        ERROR,
+        WARNING
+    }
+
+    // TODO: get the type of this thing
+    def message
+    TYPE messageType
+
+    LinterMessage(def message, TYPE messageType) {
+        this.message = message
+        this.messageType = messageType
+    }
+
+    /**
+     * Print the message as <message string> @ line <line>, column <column>
+     */
+    def print() {
+        if (this.messageType == TYPE.ERROR) {
+            println "${this.message.getMessage()}"
+        }
+        if (this.messageType == TYPE.WARNING) {
+            def context = this.message.getContext()
+            println "${this.message.getMessage()} @ line ${context.getStartLine()}, column ${context.getStartColumn()}"
+        }
+    }
+}
+
 
 @CommandLine.Command(
         name = "nf-lint",
         mixinStandardHelpOptions = true,
-        version = "nf-linter 0.1.0beta",
+        version = "0.2.0beta",
         description = "Lints Nextflow scripts for syntax and semantic issues using the Nextflow Language Server tools."
 )
 class Main implements Callable<Integer> {
@@ -34,12 +141,12 @@ class Main implements Callable<Integer> {
     Integer call() {
         def src = new File(path)
         if (!src.exists()) {
-            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Path '${path}' does not exist.").reset()
+            System.err.println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Path '${path}' does not exist.").reset()
             return 1
         }
 
         if (!src.isFile() && !src.isDirectory()) {
-            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Path '${path}' is invalid.").reset()
+            System.err.println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Path '${path}' is invalid.").reset()
             return 1
         }
 
@@ -52,14 +159,32 @@ class Main implements Callable<Integer> {
             return 1
         }
 
-        // Initialize AST caches
-        def scriptASTCache = new ScriptAstCache()
-        scriptASTCache.initialize(Paths.get("").toUri().toString())
+        def messages = []
 
-        def errorsInScripts = scriptFiles.isEmpty() ? 0 : lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings)
-        def errorsInConfigs = configFiles.isEmpty() ? 0 : lintFiles(configFiles, new ConfigAstCache(), SOURCE_TYPE.CONFIG, silenceWarnings)
+        if (!scriptFiles.isEmpty()) {
+            ScriptAstCache scriptASTCache = new ScriptAstCache()
+            scriptASTCache.initialize(Paths.get("").toUri().toString())
+            messages.addAll(lintFiles(scriptFiles, scriptASTCache, SOURCE_TYPE.SCRIPT, silenceWarnings))
+        }
 
-        return errorsInScripts || errorsInConfigs ? 1 : 0
+        if (!configFiles.isEmpty()) {
+            def configAstCache = new ConfigAstCache()
+            messages.addAll(lintFiles(configFiles, configAstCache, SOURCE_TYPE.CONFIG, silenceWarnings))
+        }
+
+        // Print them //
+        printMessages(messages, silenceWarnings)
+
+        return checkForErrors(messages) ? 1 : 0
+    }
+
+    /**
+     * Check if there are errors in the messages
+     * @param messages
+     * @return Boolean -> True if there is at least one error
+     */
+    static boolean checkForErrors(ArrayList messages) {
+        (messages as List<FileLinterMessages>).any { fileLintMessages -> fileLintMessages.errorMessages.any() }
     }
 
     /**
@@ -109,15 +234,16 @@ class Main implements Callable<Integer> {
      * @param files a List of Files
      * @param astCache the ASTCacheService (either Script or Config [as in Nextflow config files]
      * @param SOURCE_TYPE Source type, either a script or a config
-     * @param silenceWarnings Set to true to disable the warning messages
-     * @return True if there are any errors in the linted files
+     * @return A LinterMessages per file Map
      */
-    static boolean lintFiles(List<File> files, def astCache, SOURCE_TYPE sourceType, Boolean silenceWarnings = false) {
+    static ArrayList<FileLinterMessages> lintFiles(List<File> files, def astCache, SOURCE_TYPE sourceType, Boolean silenceWarnings) {
         def label = sourceType.toString().toLowerCase()
 
+        def linterMessages = []
+
         if (files.isEmpty()) {
-            println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
-            return false
+            System.err.println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: No ${label} files to lint.").reset()
+            return []
         }
 
         def dummyCacheFile = new DummyFileCache()
@@ -133,7 +259,7 @@ class Main implements Callable<Integer> {
 
         if (!uris.size()) {
             println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("No ${label} files to lint.").reset()
-            return false
+            return []
         }
 
         try {
@@ -141,61 +267,80 @@ class Main implements Callable<Integer> {
         } catch (Exception e) {
             println Ansi.ansi().fgBright(Ansi.Color.RED).a("Error: Error processing files: ${e.message}").reset()
             e.printStackTrace()
-            return true
+            return []
         }
 
-        def totalErrors = 0
-        def totalWarnings = 0
+        uris.forEach { uri ->
+            def file = new File(uri as URI)
+            def filePath = file.path
+            def fileLinterMessages = new FileLinterMessages(file, sourceType, silenceWarnings)
 
-        uris.each { uri ->
-            def filePath = new File(uri as URI).path
-            println "-" * (12 + filePath.length())
-            println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("📄 Linting: ${filePath}").reset()
-            println "-" * (12 + filePath.length())
-
-            def errorsInFile = []
             if (astCache.hasErrors(uri)) {
-                astCache.getErrors(uri).each { error ->
+                astCache.getErrors(uri).forEach { error ->
                     def statement = readLineFromFile(filePath, error.getLine() as int)
                     if (!statement.contains("// noqa")) {
-                        errorsInFile << "- ${error.getMessage()}"
-                        totalErrors += 1
+                        fileLinterMessages.addErrorMessage(new LinterMessage(error, LinterMessage.TYPE.ERROR))
                     }
                 }
-                if (astCache.hasWarnings(uri)) println "~" * (12 + filePath.length())
             }
 
-            if (errorsInFile.size()) {
-                println Ansi.ansi().fgBright(Ansi.Color.RED).a("🚩 Errors").reset()
-                errorsInFile.each(errorMessage -> {
-                    println errorMessage
-                })
-            }
-
-            if (!silenceWarnings && astCache.hasWarnings(uri)) {
-                println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("⚠️ Warnings").reset()
-                astCache.getWarnings(uri).each { warning ->
-                    def context = warning.getContext()
-                    println "- ${warning.getMessage()} @ line ${context.getStartLine()}, column ${context.getStartColumn()}"
-                    totalWarnings += 1
+            if (astCache.hasWarnings(uri)) {
+                astCache.getWarnings(uri).forEach { warning ->
+                    fileLinterMessages.addWarningMessage(new LinterMessage(warning, LinterMessage.TYPE.WARNING))
                 }
             }
 
-            if (totalErrors == 0 && totalWarnings == 0) {
-                println Ansi.ansi().fgBright(Ansi.Color.GREEN).a("✨ No issues with this one.").reset()
+            linterMessages << fileLinterMessages
+        }
+
+        return linterMessages
+    }
+
+    /**
+     * Print the File Linter Messages in the terminal
+     * @param messages
+     */
+    static def printMessages(List<FileLinterMessages> fileLinterMessages, Boolean silenceWarnings) {
+
+        def summary = [
+                lintedScripts : 0,
+                scriptErrors  : 0,
+                scriptWarnings: 0,
+                lintedConfigs : 0,
+                configErrors  : 0,
+                configWarnings: 0,
+        ]
+
+        fileLinterMessages.forEach { linterMessage ->
+            {
+                if (linterMessage.sourceType == SOURCE_TYPE.SCRIPT) {
+                    summary.lintedScripts++
+                    summary.scriptErrors += linterMessage.errorMessages.size()
+                    summary.scriptWarnings += linterMessage.warningMessages.size()
+                }
+                if (linterMessage.sourceType == SOURCE_TYPE.CONFIG) {
+                    summary.lintedConfigs++
+                    summary.configErrors += linterMessage.errorMessages.size()
+                    summary.configWarnings += linterMessage.warningMessages.size()
+                }
+                linterMessage.print()
             }
         }
 
         println "-" * 40
-        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary for ${label}").reset()
-        println "Total files linted: ${files.size()}"
-        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${totalErrors} 🚩").reset()
+        println Ansi.ansi().fgBright(Ansi.Color.BLUE).a("Summary").reset()
+        println "Total script files linted: ${summary.lintedScripts}"
+        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.scriptErrors}").reset()
         if (!silenceWarnings) {
-            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${totalWarnings} ⚠️").reset()
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.scriptWarnings}").reset()
+        }
+        println ""
+        println "Total config files linted: ${summary.lintedConfigs}"
+        println Ansi.ansi().fgBright(Ansi.Color.RED).a("Total errors: ${summary.configErrors}").reset()
+        if (!silenceWarnings) {
+            println Ansi.ansi().fgBright(Ansi.Color.YELLOW).a("Total warnings: ${summary.configWarnings}").reset()
         }
         println "-" * 40
-
-        return totalErrors > 0
     }
 
     static void main(String[] args) {
