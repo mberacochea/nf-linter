@@ -21,7 +21,7 @@ The linter will exit with code `1` if there is at least one error.
 ## Installation
 
 ### Requirements
-- Java 11 or later
+- Java 17 or later
 - Groovy
 - Gradle (or use the wrapper provided in the repository)
 
@@ -109,16 +109,21 @@ process LOOKUP_KINGDOM {
 Reports:
 
 ```bash
------------------------------------------------------------------------------
-📄 Linting: nf-linter/src/test/resources/test_with_errors_but_noqa_inline.nf
------------------------------------------------------------------------------
-🚩 Errors
-- `value_detected` is not defined @ line 6, column 26.
+➜  nf-linter git:(main) ✗ nf-linter src/test/resources/test_with_errors_but_noqa_inline.nf 
+--------------------------------------------------------------------------------------------
+Linting: /home/mbc/projects/nf-linter/src/test/resources/test_with_errors_but_noqa_inline.nf
+--------------------------------------------------------------------------------------------
+Errors
+`value_detected` is not defined @ line 8, column 26.
 ----------------------------------------
-Summary for script files
-Total files linted: 1
-Total errors: 1 🚩
-Total warnings: 0 ⚠️
+Summary
+Total script files linted: 1
+Total errors: 1
+Total warnings: 0
+
+Total config files linted: 0
+Total errors: 0
+Total warnings: 0
 ----------------------------------------
 ```
 
@@ -142,41 +147,51 @@ process LOOKUP_KINGDOM {
 That error is ignored:
 
 ```bash
------------------------------------------------------------------------------
-📄 Linting: nf-linter/src/test/resources/test_with_errors_but_noqa_inline.nf
------------------------------------------------------------------------------
-✨ No issues with this one.
+➜  nf-linter git:(main) ✗ nf-linter src/test/resources/test_with_errors_but_noqa_inline.nf 
+--------------------------------------------------------------------------------------------
+Linting: /home/mbc/projects/nf-linter/src/test/resources/test_with_errors_but_noqa_inline.nf
+--------------------------------------------------------------------------------------------
+No errors with this one
 ----------------------------------------
-Summary for script files
-Total files linted: 1
-Total errors: 0 🚩
-Total warnings: 0 ⚠️
+Summary
+Total script files linted: 1
+Total errors: 0
+Total warnings: 0
+
+Total config files linted: 0
+Total errors: 0
+Total warnings: 0
 ----------------------------------------
+
 ```
 
 ### Output example
 
 ```bash
-➜  nf-linter git:(main) java -jar build/libs/nf-linter-all.jar src/test/test.nf 
----------------------------------------------------------
-📄 Linting: nf-linter/src/test/test_with_warnings.nf
----------------------------------------------------------
----------------------------------------------------------------------------------
-⚠️ Warnings
-- Variable was declared but not used @ line 10, column 9
+➜  nf-linter git:(main) ✗ nf-linter src/test/resources//test_with_warnings.nf 
+------------------------------------------------------------------------------
+Linting: /home/mbc/projects/nf-linter/src/test/resources/test_with_warnings.nf
+------------------------------------------------------------------------------
+No errors with this one
+Warnings
+Variable was declared but not used @ line 10, column 9
 ----------------------------------------
-Summary for script files
-Total files linted: 1
-Total errors: 0 🚩
-Total warnings: 1 ⚠️
+Summary
+Total script files linted: 1
+Total errors: 0
+Total warnings: 1
+
+Total config files linted: 0
+Total errors: 0
+Total warnings: 0
 ----------------------------------------
 ```
 
 ## TODOs
 
-- [ ] Print the summaries (scripts and files) together at the end of the execution
-- [ ] Clean up the output, for example when running with -w for files with no errors the output is empty
-- [ ] Review the error printing bits, everything is sent to the stdout
+- [X] Print the summaries (scripts and files) together at the end of the execution
+- [X] Clean up the output, for example when running with -w for files with no errors the output is empty
+- [X] Review the error printing bits, everything is sent to the stdout
 - [ ] Automate the nf-lint executable
   generation [really_executable_jars](https://skife.org/java/unix/2011/06/20/really_executable_jars.html)
 - [ ] Unit tests for config files

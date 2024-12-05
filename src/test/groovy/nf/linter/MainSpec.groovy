@@ -1,7 +1,7 @@
 package nf.linter
 
-import spock.lang.Specification
 import nextflow.lsp.services.script.ScriptAstCache
+import spock.lang.Specification
 
 import java.nio.file.Paths
 

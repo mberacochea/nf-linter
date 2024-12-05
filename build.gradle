@@ -17,7 +17,7 @@ dependencies {
     implementation 'info.picocli:picocli:4.7.4'
     implementation 'org.fusesource.jansi:jansi:2.4.0'
     // The nextflow lang server
-    implementation files('libs/language-server-v1.0.1.jar')
+    implementation files('libs/language-server-v1.0.2.jar')
 }
 
 application {
@@ -26,9 +26,10 @@ application {
 
 jar {
     manifest {
-        attributes 'Class-Path': 'libs/language-server-v1.0.1.jar'
+        attributes 'Class-Path': 'libs/language-server-v1.0.2.jar'
     }
 }
+
 
 testing {
     suites {
