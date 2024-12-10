@@ -120,7 +120,7 @@ class LinterMessage {
         name = "nf-lint",
         mixinStandardHelpOptions = true,
         version = "0.2.1-beta",
-        description = "Lints Nextflow scripts for syntax and semantic issues using the Nextflow Language Server tools."
+        description = "Lints Nextflow scripts and configs for syntax and semantic issues using the Nextflow Language Server tools."
 )
 class Main implements Callable<Integer> {
 
