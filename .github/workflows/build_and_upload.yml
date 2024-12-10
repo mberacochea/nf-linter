@@ -29,4 +29,4 @@ jobs:
         with:
           files: build/libs/nf-linter-all.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
