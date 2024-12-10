@@ -119,7 +119,7 @@ class LinterMessage {
 @CommandLine.Command(
         name = "nf-lint",
         mixinStandardHelpOptions = true,
-        version = "0.2.1-beta",
+        version = "0.2.2-beta",
         description = "Lints Nextflow scripts and configs for syntax and semantic issues using the Nextflow Language Server tools."
 )
 class Main implements Callable<Integer> {
