@@ -1,7 +1,7 @@
 package nf.linter
 
-import spock.lang.Specification
 import nextflow.lsp.services.script.ScriptAstCache
+import spock.lang.Specification
 
 import java.nio.file.Paths
 
@@ -36,10 +36,10 @@ class MainSpec extends Specification {
         def testFile = new File(getClass().getResource("/test_all_good.nf").toURI())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
+        def messages = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT, false)
 
         then: "No errors should be returned"
-        !result
+        !Main.checkForErrors(messages)
     }
 
     def "lintFiles should detect and report import declaration errors"() {
@@ -47,18 +47,16 @@ class MainSpec extends Specification {
         def testFile = new File(getClass().getResource("/test_excluded_syntax_import.nf").toURI())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
+        def messages = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT, false)
+        Main.printMessages(messages, false)
 
         then: "Errors should be returned"
-        result
+        Main.checkForErrors(messages)
 
         and: "Verify error messages"
         def capturedOutput = outputStream.toString()
         capturedOutput.contains("Groovy `import` declarations are not supported")
         capturedOutput.contains("Total errors: 3")
-
-        cleanup: "Restore system output"
-        System.out = originalOut
     }
 
     def "lintFiles should detect mixing of script declarations and statements"() {
@@ -66,19 +64,17 @@ class MainSpec extends Specification {
         def testFile = new File(getClass().getResource("/test_excluded_syntax_mixing_script_declarations_and_statements.nf").toURI())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
+        def messages = Main.lintFiles([testFile], scriptASTCache, Main.SOURCE_TYPE.SCRIPT, false)
+        Main.printMessages(messages, false)
 
         then: "Errors should be returned"
-        result
+        Main.checkForErrors(messages)
 
         and: "Verify specific error messages"
         def capturedOutput = outputStream.toString()
         capturedOutput.contains("Statements cannot be mixed with script declarations")
         capturedOutput.contains("Total errors: 1")
         capturedOutput.contains("Total warnings: 0")
-
-        cleanup: "Restore system output"
-        System.out = originalOut
     }
 
     def "lintFiles should detect inline assignment in method call"() {
@@ -89,17 +85,18 @@ class MainSpec extends Specification {
             def foo (a, b) {
                 println "Hello"
             }
-            
-            workflow {    
+
+            workflow {
                 foo(x=1, y=2)
             }
         '''.stripIndent())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
+        def messages = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT, false)
+        Main.printMessages(messages, false)
 
         then: "Errors should be returned"
-        result
+        Main.checkForErrors(messages)
 
         and: "Verify error messages"
         def capturedOutput = outputStream.toString()
@@ -117,10 +114,11 @@ class MainSpec extends Specification {
         '''.stripIndent())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
+        def messages = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT, false)
+        Main.printMessages(messages, false)
 
         then: "Errors should be returned"
-        result
+        Main.checkForErrors(messages)
 
         and: "Verify error messages"
         def capturedOutput = outputStream.toString()
@@ -140,10 +138,10 @@ class MainSpec extends Specification {
         '''.stripIndent())
 
         when: "lintFiles is called"
-        def result = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT)
+        def messages = Main.lintFiles([testScript], scriptASTCache, Main.SOURCE_TYPE.SCRIPT, false)
 
         then: "No errors should be returned"
-        !result
+        !Main.checkForErrors(messages)
     }
 
     def "launch the tool with a folder that only has a txt file"() {
@@ -175,7 +173,8 @@ class MainSpec extends Specification {
         then: "No errors should be reported"
         result == 0
         def capturedOutput = outputStream.toString()
-        !capturedOutput.contains("Total warnings: 0")
+        capturedOutput.contains("Total warnings: 0")
+        capturedOutput.contains("Total warnings: 1")
     }
 
     def "call the linter on a file that has nf-lint: noqa"() {
