@@ -26,7 +26,7 @@ jobs:
         run: ./gradlew build
 
       - name: Upload build artifacts
-        uses: Shopify/upload-to-release@v1
+        uses: Shopify/upload-to-release@v2.0.0
         with:
             name: nf-linter
             path: build/libs/nf-linter-all.jar
