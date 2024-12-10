@@ -29,5 +29,3 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: build/libs/nf-linter-all.jar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
