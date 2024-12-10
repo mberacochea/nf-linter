@@ -1,4 +1,4 @@
-name: Build and Upload Release Artifact
+name: Build and upload the jar
 
 on:
   release:
@@ -24,9 +24,9 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Upload build artifacts
-        uses: Shopify/upload-to-release@v2.0.0
+      - name: Upload the build
+        uses: softprops/action-gh-release@v2
         with:
-            name: nf-linter
-            path: build/libs/nf-linter-all.jar
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
+          files: build/libs/nf-linter-all.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }
